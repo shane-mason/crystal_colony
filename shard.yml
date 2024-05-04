@@ -1,0 +1,13 @@
+name: crystal_colony
+version: 0.1.0
+
+authors:
+  - your-name-here <your-email-here>
+
+targets:
+  crystal_colony:
+    main: src/crystal_colony.cr
+
+crystal: '>= 1.11.2'
+
+license: MIT

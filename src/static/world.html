@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<style>
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 20px;
+  font-weight: bold;
+}
+.button {
+  background-color: #6a1b9a;
+  border: none;
+  color: white;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+.button:hover {
+  border: 1px solid #7b1fa2;
+}
+
+.running {
+  background-color: #d82d4a;
+}
+
+</style>
+<body bgcolor="black" style="color: gray">
+<span style="white-space: nowrap">
+🔮 Crystal Colony 🔮 &#129030;
+<button onclick="call_endpoint('/lowmerge')" class="button">LowMerge</button>
+<button onclick="call_endpoint('/declutter')" class="button">Declutter</button>
+<button onclick="call_endpoint('/smooth')" class="button">Smooth</button>
+<button onclick="call_endpoint('/pickpoints')" class="button">Points</button>
+<button onclick="call_endpoint('/reset')" class="button">Reset</button>
+<button onclick="call_endpoint('/startsim')" class="button">Start</button>
+<button onclick="tick_sim()" class="button" id="tickbutton">Tick</button>
+<button onclick="runsim()" class="button" id="runbutton">Run</button>
+</span>
+
+<canvas id="crystalCanvas" width="2140" height="1200" style="border:1px solid grey"></canvas>
+
+<script>
+//2140
+const c = document.getElementById("crystalCanvas");
+const ctx = c.getContext("2d");
+ctx.strokeStyle = "#546e7a";
+let grid_size = 10;
+let grid_buffer = 1;
+let keep_running = false;
+let last_world = []
+let last_pop = []
+
+function runsim(){
+    if(keep_running){
+        keep_running = false;
+        document.getElementById("runbutton").innerHTML = "Paused"
+        document.getElementById("runbutton").classList.remove('running');
+    }
+    else{
+        keep_running = true;
+        document.getElementById("runbutton").innerHTML = "Running"
+        document.getElementById("runbutton").classList.add('running');
+        tick_sim();
+    }
+}
+
+function print_grid(grid){
+    last_world = grid
+    let x_size = grid.length;
+    let y_size = grid[0].length;
+
+    //console.log(grid);
+    for(var x = 0; x < x_size; x+=1){
+        for(var y=0; y < y_size; y+=1){
+            //ctx.fillStyle = "#01579b";
+
+            if(grid[x][y].colony == true){
+                ctx.fillStyle = "#2d4ad8";
+
+            }
+            else if(grid[x][y].target == true){
+                ctx.fillStyle = "#d82d4a";
+
+            }
+            else{
+
+                ctx.fillStyle = "rgb(" + grid[x][y].height + "," + grid[x][y].height + "," + grid[x][y].height + ")";
+
+            }
+            ctx.beginPath();
+            ctx.fillRect(x*grid_size+grid_buffer,
+                        y*grid_size+grid_buffer,
+                        grid_size-grid_buffer*2,
+                        grid_size-grid_buffer*2);
+            ctx.stroke();
+
+            if(grid[x][y].pheromone > 0){
+                ctx.strokeStyle = "rgb(" + Math.round(grid[x][y].pheromone) + ", 0, 0)";
+
+                ctx.beginPath();
+                ctx.strokeRect(x*grid_size+grid_buffer+2,
+                            y*grid_size+grid_buffer+2,
+                            grid_size-grid_buffer*4,
+                            grid_size-grid_buffer*4);
+                ctx.stroke();
+
+            }
+
+        }
+    }
+
+}
+
+function print_population(pop){
+    print_grid(last_world)
+    for(var i=0; i<pop.length; i++){
+        if( pop[i].loaded == true ){
+            ctx.fillStyle = "#c043f9"
+            /*
+            for(var j=0; j<pop[i].track.length; j++){
+                t = pop[i].track[j]
+                ctx.beginPath();
+                ctx.fillRect(t.x*grid_size+grid_buffer+2,
+                            t.y*grid_size+grid_buffer+2,
+                            grid_size-grid_buffer*4,
+                            grid_size-grid_buffer*4);
+                ctx.stroke();
+            }
+
+            for(var k=0; k<pop[i].pheromones.length; k++){
+                ctx.strokeStyle = "rgb(" + Math.round(pop[i].pheromones[k].pheromone) + ", 0, 0)";
+                t = pop[i].pheromones[k]
+                ctx.beginPath();
+                ctx.strokeRect(t.x*grid_size+grid_buffer+2,
+                            t.y*grid_size+grid_buffer+2,
+                            grid_size-grid_buffer*4,
+                            grid_size-grid_buffer*4);
+                ctx.stroke();
+            }
+            */
+        }
+        else{
+            ctx.fillStyle = "#5f91fc"
+        }
+        let x = pop[i].x
+        let y = pop[i].y
+        ctx.beginPath();
+        ctx.fillRect(x*grid_size+grid_buffer,
+                    y*grid_size+grid_buffer,
+                    grid_size-grid_buffer*2,
+                    grid_size-grid_buffer*2);
+        ctx.stroke();
+    }
+}
+
+function call_endpoint(endpoint){
+
+    const apiUrl = 'http://127.0.0.1:8080' + endpoint;
+    fetch(apiUrl).then(response=>{
+        fetch_world()
+    });
+}
+
+function tick_sim(){
+
+    const apiUrl = 'http://127.0.0.1:8080/ticksim';
+    fetch(apiUrl).then(response=>{
+        update_world();
+        fetch_population();
+    });
+}
+
+function update_world(){
+    const apiUrl = 'http://127.0.0.1:8080/world';
+    fetch(apiUrl)
+    .then(response => {
+        if (!response.ok) {
+         throw new Error('Network error - bad response');
+        }
+        return response.json()
+    })
+    .then(data => {
+        last_world = data
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+
+}
+
+
+function fetch_world(){
+
+    const apiUrl = 'http://127.0.0.1:8080/world';
+
+    fetch(apiUrl)
+    .then(response => {
+        if (!response.ok) {
+        throw new Error('Network error - bad response');
+        }
+        return response.json();
+    })
+    .then(data => {
+        print_grid(data);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+
+}
+
+
+function fetch_population(){
+
+    const apiUrl = 'http://127.0.0.1:8080/getpop';
+
+    fetch(apiUrl)
+    .then(response => {
+        if (!response.ok) {
+        throw new Error('Network error - bad response');
+        }
+        return response.json();
+    })
+    .then(data => {
+        print_population(data);
+        if(keep_running){
+            tick_sim()
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+
+}
+
+
+
+
+//setInterval(fetch_world, 1000);
+fetch_world();
+</script>
+
+</body>
+</html>
+
+
