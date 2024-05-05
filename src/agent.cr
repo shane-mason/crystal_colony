@@ -33,7 +33,7 @@ class Agent
     @last_dir = Random.rand(8)
     @x = tile.x
     @y = tile.y
-    @elevation_threshhold = 50
+    @elevation_threshhold = 30
     @randomness = 0.1
     #left, right direction weights
     @turn_weights = {0.5, 0.5}
@@ -108,6 +108,7 @@ class Agent
         @x = next_tile.x
         @y = next_tile.y
         @tile = next_tile
+
       else
         @returned = true
 

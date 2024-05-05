@@ -15,8 +15,6 @@ module CrystalColony
   server = HTTP::Server.new([HTTP::StaticFileHandler.new("static/")]) do |context|
     context.response.content_type = "text/json"
 
-    puts "Incoming request for non-static endpoint: " + context.request.path
-
     if context.request.path == "/world"
       context.response.print world.get_world_view
     elsif context.request.path == "/smooth"

@@ -51,8 +51,6 @@ class Queen
       @population.delete(to_reap)
     end
 
-
-
   end
 
   def get_population_json

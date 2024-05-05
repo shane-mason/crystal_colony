@@ -117,28 +117,7 @@ function print_population(pop){
     for(var i=0; i<pop.length; i++){
         if( pop[i].loaded == true ){
             ctx.fillStyle = "#c043f9"
-            /*
-            for(var j=0; j<pop[i].track.length; j++){
-                t = pop[i].track[j]
-                ctx.beginPath();
-                ctx.fillRect(t.x*grid_size+grid_buffer+2,
-                            t.y*grid_size+grid_buffer+2,
-                            grid_size-grid_buffer*4,
-                            grid_size-grid_buffer*4);
-                ctx.stroke();
-            }
 
-            for(var k=0; k<pop[i].pheromones.length; k++){
-                ctx.strokeStyle = "rgb(" + Math.round(pop[i].pheromones[k].pheromone) + ", 0, 0)";
-                t = pop[i].pheromones[k]
-                ctx.beginPath();
-                ctx.strokeRect(t.x*grid_size+grid_buffer+2,
-                            t.y*grid_size+grid_buffer+2,
-                            grid_size-grid_buffer*4,
-                            grid_size-grid_buffer*4);
-                ctx.stroke();
-            }
-            */
         }
         else{
             ctx.fillStyle = "#5f91fc"

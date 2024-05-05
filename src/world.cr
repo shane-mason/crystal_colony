@@ -65,28 +65,29 @@ class World
   property colony_spawn
   property brain
 
+  LOW_MARK = 200
+  MAX_HEIGHT = 255
+
   def initialize(size_x : Int32, size_y : Int32)
     @x_size = size_x
     @y_size = size_y
-    @board = Array(Array(Tile)).new(@x_size) { Array(Tile).new(@y_size, Tile.new) }
-    @max_height = 255
-    @low_mark = 200
-    @high_mark = 200
     @colony_boundary = 20
     @target_boundary = 20
     @point_buffer = 4
     @colony_spawn = {0,0}
     @brain = CrystalBrain::Brain.new "test", @x_size, @y_size
-    generate_livetopo()
-    #generate_topology()
+    @board = Array(Array(Tile)).new(@x_size) { Array(Tile).new(@y_size, Tile.new) }
+    setup
   end
 
   def reset()
-    puts "resetting"
+    setup
+  end
+
+  def setup()
     @brain = CrystalBrain::Brain.new "test", @x_size, @y_size
     @board = Array(Array(Tile)).new(@x_size) { Array(Tile).new(@y_size, Tile.new) }
     generate_livetopo()
-    #generate_topology()
   end
 
   def get_spawn_tile
@@ -131,10 +132,9 @@ class World
   end
 
   def generate_livetopo()
-     #just copy for now
      (0...@x_size).each do |x|
       (0...@y_size).each do |y|
-        tile = Tile.new( x, y, @brain.@board[x][y] * 127)
+        tile = Tile.new( x, y, @brain.@board[x][y].value * 127)
         @board[x][y] = tile
       end
      end
@@ -145,7 +145,7 @@ class World
     @brain.tick()
     (0...@x_size).each do |x|
       (0...@y_size).each do |y|
-        @board[x][y].height = brain.@board[x][y] * 127
+        @board[x][y].height = @brain.@board[x][y].value * 127
       end
      end
      calc_costs
@@ -156,19 +156,15 @@ class World
     (0...@x_size).each do |x|
       (0...@y_size).each do |y|
         neighborhood = get_neihborhood_stats(x,y)
-        average = neighborhood.average_height
         #get diff from average
-        diff = average - @board[x][y].height
+        diff = neighborhood.average_height - @board[x][y].height
         change = 0.0
         if diff > 10
           change = diff
         end
         @board[x][y].height = @board[x][y].height  + change.to_i
-        y+=1
       end
-      x+=1
     end
-    #@board = new_board
     calc_costs
   end
 
@@ -193,7 +189,7 @@ class World
       test_x = @point_buffer + rnd.rand(@x_size-@point_buffer*2)
       test_y = @point_buffer + rnd.rand(@target_boundary-@point_buffer*2)
       avg = get_neihborhood_stats(test_x, test_y)
-      if avg.average_height < @low_mark/2
+      if avg.average_height < LOW_MARK/2
 
         start_y = test_y - rnd.rand(@point_buffer-1) - 1
         end_y = test_y + rnd.rand(@point_buffer-1) + 1
@@ -233,7 +229,7 @@ class World
       test_y = @y_size - (@point_buffer + rnd.rand(@target_boundary-@point_buffer*2))
       avg = get_neihborhood_stats(test_x, test_y)
 
-      if avg.average_height < @low_mark/2
+      if avg.average_height < LOW_MARK/2
         @colony_spawn = {test_x,test_y}
         start_y = test_y - @point_buffer/2
         end_y = test_y + @point_buffer/2 - 1
