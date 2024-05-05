@@ -43,8 +43,11 @@ class Agent
     @pheromones = Array(Tile).new()
     @pheromone_level = 0
     @pheromone_attraction = 0.95
+    @pheromone_blocker = 0.0
+    @pheromone_blocker_decay = 0.1
     @tick_age = 0
     @returned = false
+
     fuzz_genetics
   end
 
@@ -83,6 +86,9 @@ class Agent
 
   def tick
     @tick_age+=1
+    if @pheromone_blocker > 0
+      @pheromone_blocker-=@pheromone_blocker_decay
+    end
     if @loaded == true
 
       if @track.size > 0
@@ -111,13 +117,29 @@ class Agent
     end
   end
 
+
   def pick_next
 
     #first - check for pheromone levels
     max_pheromone_dir = get_highest_pheromone
-    if max_pheromone_dir[0] > -1 && max_pheromone_dir[1] > @tile.pheromone
+    if @pheromone_blocker <= 0 && max_pheromone_dir[0] > -1 && max_pheromone_dir[1] > @tile.pheromone
       #then we should go that way
       new_dir = max_pheromone_dir[0]
+
+      if @tile.costs[new_dir] > @elevation_threshhold
+        @pheromone_blocker = 1
+        #then this means that this path isn't valid
+        valid_path = false
+        tc = 0
+        while valid_path==false && tc < dir_count
+          new_dir = shift_dir @last_dir
+          if @tile.costs[new_dir] < @elevation_threshhold
+            valid_path = true
+          end
+          tc+=1
+        end
+
+      end
     else
 
       if @tile.costs[@last_dir] > @elevation_threshhold
@@ -131,20 +153,20 @@ class Agent
     end
 
 
-      # is the new tile a border tile?
-      if @tile.neighbors[new_dir].neighbors.size == 0
-          new_dir = reverse_dir(@last_dir)
-          #don't move until next tick
-      else
-        @tile = @tile.neighbors[new_dir]
-        @track.push(@tile)
-        if @tile.target == true
-          @loaded = true
-          @pheromone_level = 250
-        end
-        @x = @tile.x
-        @y = @tile.y
+    # is the new tile a border tile?
+    if @tile.neighbors[new_dir].neighbors.size == 0
+        new_dir = reverse_dir(@last_dir)
+        #don't move until next tick
+    else
+      @tile = @tile.neighbors[new_dir]
+      @track.push(@tile)
+      if @tile.target == true
+        @loaded = true
+        @pheromone_level = 250
       end
+      @x = @tile.x
+      @y = @tile.y
+    end
 
 
       @last_dir = new_dir

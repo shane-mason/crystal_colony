@@ -1,4 +1,5 @@
 require "json"
+require "../../crystal_brain/src/crystal_brain"
 
 class Tile
   include JSON::Serializable
@@ -12,6 +13,18 @@ class Tile
   property x : Int32
   property y : Int32
   property pheromone : Float64
+
+  def initialize(x : Int32, y : Int32, height : Int32)
+    @height = height
+    @target = false
+    @colony = false
+    # order: ne n nw e w se s sw
+    @costs = Array(Float64).new(8, 0.0)
+    @neighbors = Array(Tile).new(8)
+    @x = x
+    @y = y
+    @pheromone = 0.0
+  end
 
   def initialize()
     @height = 0
@@ -41,8 +54,8 @@ class NeighborhoodStats
 end
 
 class World
-  property x_size
-  property y_size
+  property x_size : Int32
+  property y_size : Int32
   property max_height
   property low_mark
   property high_mark
@@ -50,6 +63,7 @@ class World
   property target_boundary
   property point_buffer
   property colony_spawn
+  property brain
 
   def initialize(size_x : Int32, size_y : Int32)
     @x_size = size_x
@@ -62,15 +76,17 @@ class World
     @target_boundary = 20
     @point_buffer = 4
     @colony_spawn = {0,0}
-    generate_topology()
-    #smooth_topology()
-
+    @brain = CrystalBrain::Brain.new "test", @x_size, @y_size
+    generate_livetopo()
+    #generate_topology()
   end
 
   def reset()
     puts "resetting"
+    @brain = CrystalBrain::Brain.new "test", @x_size, @y_size
     @board = Array(Array(Tile)).new(@x_size) { Array(Tile).new(@y_size, Tile.new) }
-    generate_topology()
+    generate_livetopo()
+    #generate_topology()
   end
 
   def get_spawn_tile
@@ -96,102 +112,49 @@ class World
     end
   end
 
-  def merge_low
-    x = 0
-    while x < @x_size
-      y = 0
-      while y < @y_size
-        if @board[x][y].height < @low_mark && @board[x][y].height > 10
-          @board[x][y].height = (@board[x][y].height*0.8).to_i
-        end
-        y+=1
-      end
-      x+=1
-    end
-  end
-
-  def get_neihborhood_stats(x, y)
+  def get_neihborhood_stats(x_in, y_in)
     neighborhood = NeighborhoodStats.new
-
-    if x > 0
-      neighborhood.count += 1
-      neighborhood.cumulative_height += @board[x-1][y].height
-      if y>0
-        neighborhood.count += 1
-        neighborhood.cumulative_height += @board[x-1][y-1].height
-      end
-      if y < @y_size-1
-        neighborhood.count += 1
-        neighborhood.cumulative_height += @board[x-1][y+1].height
+    [-1, 0, 1].each do |x|
+      [-1, 0, 1].each do |y|
+        unless x == 0 && y == 0
+          this_x = x_in + x
+          this_y = y_in + y
+          if this_x >= 0 && this_x < @x_size && this_y >= 0 && this_y < @y_size
+            neighborhood.count += 1
+            neighborhood.cumulative_height += @board[this_x][this_y].height
+          end
+        end
       end
     end
-    if x < @x_size-1
-      neighborhood.count += 1
-      neighborhood.cumulative_height += @board[x+1][y].height
-      if y > 0
-        neighborhood.count += 1
-        neighborhood.cumulative_height += @board[x+1][y-1].height
-      end
-      if y < @y_size-1
-        neighborhood.count += 1
-        neighborhood.cumulative_height += @board[x+1][y+1].height
-      end
-
-    end
-    if y > 0
-      neighborhood.count += 1
-      neighborhood.cumulative_height += @board[x][y-1].height
-    end
-    if y < @y_size-1
-      neighborhood.count += 1
-      neighborhood.cumulative_height += @board[x][y+1].height
-    end
-
     neighborhood.average_height = (neighborhood.cumulative_height/neighborhood.count).to_i
     return neighborhood
   end
 
-  def declutter_high()
-    x = 0
-    while x < @x_size
-      y = 0
-      while y < y_size
-        if @board[x][y].height > @high_mark
-          neighborhood = get_neihborhood_stats(x,y)
-
-          if neighborhood.average_height < @low_mark * 0.4
-            @board[x][y].height = neighborhood.average_height
-          end
-        end
-        y+=1
+  def generate_livetopo()
+     #just copy for now
+     (0...@x_size).each do |x|
+      (0...@y_size).each do |y|
+        tile = Tile.new( x, y, @brain.@board[x][y] * 127)
+        @board[x][y] = tile
       end
-      x+=1
-    end
+     end
+     calc_costs
   end
 
-  def generate_topology()
-    rnd = Random.new
-    x = 0
-    while x < @x_size
-      y = 0
-      while y < @y_size
-        tile = Tile.new
-        tile.height = rnd.rand(@max_height)
-        tile.x = x
-        tile.y = y
-        @board[x][y] = tile
-        y+=1
+  def evolve_topology()
+    @brain.tick()
+    (0...@x_size).each do |x|
+      (0...@y_size).each do |y|
+        @board[x][y].height = brain.@board[x][y] * 127
       end
-      x+=1
-    end
+     end
+     calc_costs
   end
 
   def smooth_topology()
     rnd = Random.new
-    x = 0
-    while x < @x_size
-      y = 0
-      while y < @y_size
+    (0...@x_size).each do |x|
+      (0...@y_size).each do |y|
         neighborhood = get_neihborhood_stats(x,y)
         average = neighborhood.average_height
         #get diff from average
@@ -206,6 +169,7 @@ class World
       x+=1
     end
     #@board = new_board
+    calc_costs
   end
 
   def pick_points

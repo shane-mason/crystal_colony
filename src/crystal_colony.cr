@@ -1,5 +1,4 @@
 require "./*"
-require "../../crystal_brain/src/crystal_brain:brain"
 require "http/server"
 
 # Colony implementation in Crystal
@@ -8,6 +7,7 @@ module CrystalColony
 
 
   world = World.new 214, 120
+  world.smooth_topology
   queen = Queen.new world, 1
 
   puts "Starting server"
@@ -21,16 +21,17 @@ module CrystalColony
       context.response.print world.get_world_view
     elsif context.request.path == "/smooth"
       context.response.print world.smooth_topology
-    elsif context.request.path == "/lowmerge"
-      context.response.print world.merge_low
-    elsif context.request.path == "/declutter"
-      context.response.print world.declutter_high
+    elsif context.request.path == "/evolve"
+      world.evolve_topology
+      context.response.print world.smooth_topology
     elsif context.request.path == "/reset"
-      context.response.print world.reset
+      world = World.new 214, 120
+      world.smooth_topology
+      queen = Queen.new world, 60
+      context.response.print "reset"
     elsif context.request.path == "/pickpoints"
       context.response.print world.pick_points
     elsif context.request.path == "/startsim"
-      world.calc_costs
       queen = Queen.new world, 60
       context.response.print queen.start_sim
     elsif context.request.path == "/ticksim"

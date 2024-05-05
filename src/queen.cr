@@ -13,17 +13,14 @@ class Queen
   end
 
   def start_sim()
-    puts "starting sim"
+    puts "Starting sim"
     @population = Array(Agent).new()
     i = 0
     spawn_tile = @world.get_spawn_tile
     @tick_count = 0
-    #while i < @population_size
     agent = Agent.new spawn_tile, @world.x_size, @world.y_size
     @population.push agent
-      #i+=1
-    #end
-    puts "done starting"
+    puts "Done starting"
   end
 
   def tick_sim()
@@ -32,17 +29,12 @@ class Queen
       a = Agent.new @world.get_spawn_tile, @world.x_size, @world.y_size
       @population.push a
       b = population.size
-      if b > population_size
-
-      end
-
     end
 
     @tick_count += 1
     puts @tick_count
     reaped = Array(Agent).new()
 
-    surviving =
 
     @population.each do |a|
       if a.tick_age >= 500
