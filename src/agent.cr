@@ -1,18 +1,24 @@
 require "json"
 
+FUZZ  = 0.1
+HFUZZ = 0.05
+BASE_PHERO_ATTRACTION = 0.95
+DIR_COUNT = 8
+FIFTYFIFTY = 0.5
+MAX_PHEROMONE = 255
+MAX_COST = 255
+
 class Agent
   include JSON::Serializable
-  @[JSON::Field(ignore: true)]
   property tile
   property x
   property y
   property loaded
+  property id
   @[JSON::Field(ignore: true)]
   property x_boundary
   @[JSON::Field(ignore: true)]
   property y_boundary
-  @[JSON::Field(ignore: true)]
-  property dir_count
   @[JSON::Field(ignore: true)]
   property elevation_threshhold
   @[JSON::Field(ignore: true)]
@@ -28,23 +34,23 @@ class Agent
   @[JSON::Field(ignore: true)]
   property returned
 
-  def initialize( @tile : Tile, @x_boundary : Int32, @y_boundary : Int32 )
+
+  def initialize( @tile : Tile, @x_boundary : Int32, @y_boundary : Int32, @id : Int32 )
     @last_dir = 0
-    @last_dir = Random.rand(8)
+    @last_dir = Random.rand(DIR_COUNT)
     @x = tile.x
     @y = tile.y
-    @elevation_threshhold = 30
-    @randomness = 0.1
+    @elevation_threshhold = 1
+    @randomness = FUZZ
     #left, right direction weights
-    @turn_weights = {0.5, 0.5}
-    @dir_count = 8
+    @turn_weights = {HFUZZ, HFUZZ}
     @loaded = false
     @track = Array(Tile).new()
     @pheromones = Array(Tile).new()
     @pheromone_level = 0
-    @pheromone_attraction = 0.95
+    @pheromone_attraction = BASE_PHERO_ATTRACTION
     @pheromone_blocker = 0.0
-    @pheromone_blocker_decay = 0.1
+    @pheromone_blocker_decay = FUZZ
     @tick_age = 0
     @returned = false
 
@@ -53,32 +59,32 @@ class Agent
 
   def fuzz_genetics
 
-    if Random.rand > 0.5
-      @elevation_threshhold += Random.rand 10
-    else
-      @elevation_threshhold -= Random.rand 10
-    end
+    #if Random.rand > 0.5
+    #  @elevation_threshhold += Random.rand 1
+    #else
+    #  @elevation_threshhold -= Random.rand 1
+    #end
 
-    if Random.rand > 0.5
-      left = @turn_weights[0] + Random.rand 0.1
+    if Random.rand > FIFTYFIFTY
+      left = @turn_weights[0] + Random.rand FUZZ
       right = 1 - left
       @turn_weights = {left, right}
     else
-      left = @turn_weights[0] - Random.rand 0.1
+      left = @turn_weights[0] - Random.rand FUZZ
       right = 1 - left
       @turn_weights = {left, right}
     end
 
-    if Random.rand > 0.5
-      @randomness += Random.rand 0.1
+    if Random.rand > FIFTYFIFTY
+      @randomness += Random.rand FUZZ
     else
-      @randomness -= Random.rand 0.1
+      @randomness -= Random.rand FUZZ
     end
 
-    if Random.rand > 0.5
-      @pheromone_attraction += Random.rand 0.05
+    if Random.rand > FIFTYFIFTY
+      @pheromone_attraction += Random.rand HFUZZ
     else
-      @pheromone_attraction -= Random.rand 0.05
+      @pheromone_attraction -= Random.rand HFUZZ
     end
 
   end
@@ -89,7 +95,9 @@ class Agent
     if @pheromone_blocker > 0
       @pheromone_blocker-=@pheromone_blocker_decay
     end
-    if @loaded == true
+
+    #are we loaded and on the way back to colony?
+    if @loaded == true && @returned == false
 
       if @track.size > 0
         if @tile.pheromone < @pheromone_level
@@ -97,17 +105,28 @@ class Agent
         end
         @pheromones.push(@tile)
         @pheromone_level -= 1
-        next_tile = @track.pop
 
-        #test if we've been here before
-        first_visited = @track.index(@tile)
-        if first_visited && first_visited >= 0 && first_visited < @track.size - 1
-          @track = @track.first(first_visited)
+        #only move if elevation isn't too high (blocked path)
+        if track[-1].height < @elevation_threshhold
+          next_tile = @track.pop
+
+          #test if we've been here before
+          first_visited = @track.index(@tile)
+          if first_visited && first_visited >= 0 && first_visited < @track.size - 1
+            @track = @track.first(first_visited)
+          end
+
+          @x = next_tile.x
+          @y = next_tile.y
+          @tile = next_tile
+
+          if @tile.colony
+            #then we are back at the colony - avoid looping back out
+            @returned = true
+            @track.clear
+          end
+
         end
-
-        @x = next_tile.x
-        @y = next_tile.y
-        @tile = next_tile
 
       else
         @returned = true
@@ -131,22 +150,27 @@ class Agent
         @pheromone_blocker = 1
         #then this means that this path isn't valid
         valid_path = false
-        tc = 0
-        while valid_path==false && tc < dir_count
+        test_count = 0
+        while valid_path==false && test_count < DIR_COUNT
           new_dir = shift_dir @last_dir
           if @tile.costs[new_dir] < @elevation_threshhold
             valid_path = true
           end
-          tc+=1
+          test_count+=1
         end
 
       end
     else
 
-      if @tile.costs[@last_dir] > @elevation_threshhold
-        new_dir = get_min_cost_dir
-      elsif randomness > Random.rand
-        new_dir = shift_dir @last_dir
+      if @tile.costs[@last_dir] > @elevation_threshhold || randomness > Random.rand
+
+        dirs = get_valid_dirs
+        if dirs.size > 0
+          new_dir = dirs.shuffle[0]
+        else
+          new_dir = get_min_cost_dir
+        end
+
       else
         # assume same direction initially
         new_dir = @last_dir
@@ -163,14 +187,13 @@ class Agent
       @track.push(@tile)
       if @tile.target == true
         @loaded = true
-        @pheromone_level = 250
+        @pheromone_level = MAX_PHEROMONE
       end
       @x = @tile.x
       @y = @tile.y
     end
 
-
-      @last_dir = new_dir
+    @last_dir = new_dir
   end
 
   def shift_dir(dir)
@@ -183,17 +206,17 @@ class Agent
     end
 
     if new_dir < 0
-      new_dir = dir_count + new_dir
-    elsif new_dir >= dir_count
-      new_dir = new_dir - dir_count
+      new_dir = DIR_COUNT + new_dir
+    elsif new_dir >= DIR_COUNT
+      new_dir = new_dir - DIR_COUNT
     end
     return new_dir
   end
 
   def reverse_dir(dir)
-    reversed = dir + Random.rand((dir_count/2).to_i) + 2
-    if reversed >= dir_count
-      reversed = reversed - dir_count
+    reversed = dir + Random.rand((DIR_COUNT/2).to_i) + 2
+    if reversed >= DIR_COUNT
+      reversed = reversed - DIR_COUNT
     end
     return reversed
   end
@@ -201,7 +224,7 @@ class Agent
   def get_min_cost_dir()
     i = 0
     min = -1
-    min_val = 250.0
+    min_val = MAX_COST
     while i < @tile.costs.size
       if @tile.costs[i] < min_val
         min = i
@@ -216,7 +239,7 @@ class Agent
     i = 0
     max_i = -1
     max_val = 0
-    while i < dir_count
+    while i < DIR_COUNT
       if @tile.neighbors[i].pheromone > max_val
         max_i = i
         max_val = @tile.neighbors[i].pheromone
@@ -226,5 +249,14 @@ class Agent
     return {max_i, max_val}
   end
 
+  def get_valid_dirs()
+    valid_paths = [] of Int32
+    (0...@tile.costs.size).each do |i|
+      if @tile.costs[i] < @elevation_threshhold
+        valid_paths.push(i)
+      end
+    end
+    return valid_paths
+  end
 
 end

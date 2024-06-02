@@ -1,14 +1,18 @@
 require "json"
 
+AGENT_MAX_TICK = 500
+
 class Queen
 
   property population_size
   property world
   property population
   property tick_count
+  property pop_count
 
   def initialize(@world : World, @population_size : Int32)
     @tick_count = 0
+    @pop_count = 0
     @population = Array(Agent).new(@population_size)
   end
 
@@ -18,16 +22,17 @@ class Queen
     i = 0
     spawn_tile = @world.get_spawn_tile
     @tick_count = 0
-    agent = Agent.new spawn_tile, @world.x_size, @world.y_size
+    agent = Agent.new spawn_tile, @world.x_size, @world.y_size, @pop_count
+    @pop_count+=1
     @population.push agent
-    puts "Done starting"
   end
 
   def tick_sim()
 
-    if @population.size < @population_size && Random.rand < 0.1
-      a = Agent.new @world.get_spawn_tile, @world.x_size, @world.y_size
+    if @population.size < @population_size && Random.rand < 0.3
+      a = Agent.new @world.get_spawn_tile, @world.x_size, @world.y_size, @pop_count
       @population.push a
+      @pop_count+=1
       b = population.size
     end
 
@@ -37,7 +42,7 @@ class Queen
 
 
     @population.each do |a|
-      if a.tick_age >= 500
+      if a.tick_age >= AGENT_MAX_TICK
         reaped.push a
       elsif a.returned == true
         #note: need to save genetics to use in next generation

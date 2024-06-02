@@ -163,8 +163,24 @@ class World
           change = diff
         end
         @board[x][y].height = @board[x][y].height  + change.to_i
+
       end
     end
+
+    #now, do a low pass raise and randomize some heights
+    (0...@x_size).each do |x|
+      (0...@y_size).each do |y|
+        if @board[x][y].height < 50
+          @board[x][y].height = 0
+        elsif @board[x][y].height < 200
+          @board[x][y].height += Random.rand(10..50)
+        else
+          shift = (@board[x][y].height * 0.2).to_i
+          @board[x][y].height += Random.rand(-shift..shift)
+        end
+      end
+    end
+
     calc_costs
   end
 
