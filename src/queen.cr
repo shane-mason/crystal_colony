@@ -22,9 +22,12 @@ class Queen
     i = 0
     spawn_tile = @world.get_spawn_tile
     @tick_count = 0
+    puts("here")
     agent = Agent.new spawn_tile, @world.x_size, @world.y_size, @pop_count
+    puts("here2")
     @pop_count+=1
     @population.push agent
+    puts("Done")
   end
 
   def tick_sim()

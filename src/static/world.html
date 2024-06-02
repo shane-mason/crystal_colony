@@ -50,6 +50,11 @@ let grid_buffer = 1;
 let keep_running = false;
 let last_world = []
 let last_pop = []
+let last_tick = Date.now()
+let INTERVAL = 400
+let total_diff = 0
+let tick_count = 0
+let max = 0
 
 function runsim(){
     if(keep_running){
@@ -58,9 +63,11 @@ function runsim(){
         document.getElementById("runbutton").classList.remove('running');
     }
     else{
+
         keep_running = true;
         document.getElementById("runbutton").innerHTML = "Running"
         document.getElementById("runbutton").classList.add('running');
+        last_tick = Date.now()
         tick_sim();
     }
 }
@@ -76,7 +83,7 @@ function print_grid(grid){
             //ctx.fillStyle = "#01579b";
 
             if(grid[x][y].colony == true){
-                ctx.fillStyle = "#2d4ad8";
+                ctx.fillStyle = "#FFFF00";
 
             }
             else if(grid[x][y].target == true){
@@ -143,11 +150,35 @@ function call_endpoint(endpoint){
 
 function tick_sim(){
 
-    const apiUrl = 'http://127.0.0.1:8080/ticksim';
-    fetch(apiUrl).then(response=>{
-        update_world();
-        fetch_population();
-    });
+    var now = Date.now()
+    var diff = now - last_tick
+    var the_tick = function(){
+        const apiUrl = 'http://127.0.0.1:8080/ticksim';
+        fetch(apiUrl).then(response=>{
+            update_world();
+            fetch_population();
+        });
+        last_tick = Date.now()
+    }
+    console.log(diff)
+    total_diff += diff
+    tick_count += 1
+    console.log("Stats " + total_diff + " " + tick_count)
+    console.log("AVG " + (total_diff/tick_count))
+    if(diff > max){
+        max = diff
+    }
+    console.log("MAX: " + max)
+    if(diff > INTERVAL){
+        the_tick()
+    }
+    else{
+        setTimeout(the_tick, INTERVAL-diff)
+
+    }
+
+
+
 }
 
 function update_world(){

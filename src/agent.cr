@@ -41,7 +41,7 @@ class Agent
     @x = tile.x
     @y = tile.y
     @elevation_threshhold = 1
-    @randomness = FUZZ
+    @randomness = HFUZZ
     #left, right direction weights
     @turn_weights = {HFUZZ, HFUZZ}
     @loaded = false
@@ -76,9 +76,9 @@ class Agent
     end
 
     if Random.rand > FIFTYFIFTY
-      @randomness += Random.rand FUZZ
+      @randomness += Random.rand HFUZZ
     else
-      @randomness -= Random.rand FUZZ
+      @randomness -= Random.rand HFUZZ
     end
 
     if Random.rand > FIFTYFIFTY

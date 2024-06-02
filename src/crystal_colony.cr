@@ -4,9 +4,11 @@ require "http/server"
 # Colony implementation in Crystal
 module CrystalColony
   VERSION = "0.1.0"
-  x_size = 100
-  y_size = 100
-
+  POP_SIZE = 40
+  x_size = 214
+  y_size = 120
+  #x_size = 100
+  #y_size = 100
   world = World.new x_size, y_size
   world.smooth_topology
   queen = Queen.new world, 1
@@ -26,12 +28,11 @@ module CrystalColony
     elsif context.request.path == "/reset"
       world = World.new x_size, y_size
       world.smooth_topology
-      queen = Queen.new world, 30
-      context.response.print "reset"
+      queen = Queen.new world, POP_SIZE
     elsif context.request.path == "/pickpoints"
       context.response.print world.pick_points
     elsif context.request.path == "/startsim"
-      queen = Queen.new world, 30
+      queen = Queen.new world, POP_SIZE
       context.response.print queen.start_sim
     elsif context.request.path == "/ticksim"
       world.tick_sim
